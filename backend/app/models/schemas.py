@@ -86,6 +86,14 @@ class Finding(BaseModel):
         default=None,
         description="Verbatim text lifted from the target page or advisory.",
     )
+    occurrences: int = Field(
+        default=1,
+        ge=1,
+        description=(
+            "How many harvested artefacts showed this weakness class. The same "
+            "vulnerability usually appears in several proof-of-concept files."
+        ),
+    )
 
 
 class RiskScore(BaseModel):

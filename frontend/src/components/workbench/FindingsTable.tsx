@@ -152,6 +152,14 @@ export default function FindingsTable({
                           <span className="text-[13px] font-medium leading-5 text-ink">
                             {finding.title}
                           </span>
+                          {finding.occurrences > 1 && (
+                            <span
+                              title={`Found in ${finding.occurrences} harvested artefacts`}
+                              className="mt-[1px] shrink-0 rounded-[4px] border border-line-strong bg-surface-3 px-1.5 py-[1px] font-mono text-[10px] text-muted"
+                            >
+                              ×{finding.occurrences}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-3 py-2.5">
@@ -214,6 +222,11 @@ export default function FindingsTable({
                           <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-muted">
                             {finding.location && <span>Location: {finding.location}</span>}
                             {finding.language && <span>Language: {finding.language}</span>}
+                            {finding.occurrences > 1 && (
+                              <span>
+                                Seen in {finding.occurrences} harvested artefacts
+                              </span>
+                            )}
                             {finding.source_url && (
                               <a
                                 href={finding.source_url}

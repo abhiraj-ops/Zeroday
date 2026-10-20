@@ -39,6 +39,12 @@ export interface StaticFinding {
   description: string;
   line: number | null;
   snippet: string;
+  /**
+   * How many times this weakness class was observed. The same flaw usually
+   * appears in several harvested artefacts; the dashboard reports the class
+   * once and says how many places it turned up.
+   */
+  occurrences: number;
 }
 
 export interface ScanResult {
@@ -175,9 +181,33 @@ function analysePatterns(code: string, language: string): StaticFinding[] {
       description: `Pattern matched \`${match[0].trim()}\` in a ${language} snippet.`,
       line: lineNo,
       snippet: lineAt(code, lineNo),
+      occurrences: 1,
     });
   }
   return findings;
+}
+
+/**
+ * Collapse findings that describe the same weakness class.
+ *
+ * The key is the class (title + CWE), not the position in the file. The same
+ * JNDI payload turns up in every harvested proof-of-concept, so keying on
+ * the line number reported one bug once per artefact and the findings list
+ * read as a wall of duplicates. Occurrences are counted instead, so the
+ * information survives the collapse.
+ */
+function mergeByClass(findings: StaticFinding[]): StaticFinding[] {
+  const merged = new Map<string, StaticFinding>();
+  for (const finding of findings) {
+    const key = `${finding.title}|${finding.cwe ?? ""}`;
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, { ...finding, occurrences: finding.occurrences || 1 });
+      continue;
+    }
+    existing.occurrences += finding.occurrences || 1;
+  }
+  return [...merged.values()];
 }
 
 /** Analyse one snippet and return a normalised risk assessment. */
@@ -199,16 +229,15 @@ export function analyzeCodeSnippet(code: string): ScanResult {
   const language = detectLanguage(snippet);
   const findings = analysePatterns(snippet, language);
 
-  // De-duplicate on (title, line).
-  const seen = new Set<string>();
-  const unique = findings.filter((f) => {
-    const key = `${f.title}|${f.line}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  // Collapse repeated occurrences of the same weakness class.
+  const unique = mergeByClass(findings);
 
-  const total = unique.reduce((sum, f) => sum + SEVERITY_WEIGHT[f.severity], 0);
+  // Weighting by occurrence count keeps the score identical to the
+  // pre-merge behaviour, where each hit was its own row.
+  const total = unique.reduce(
+    (sum, f) => sum + SEVERITY_WEIGHT[f.severity] * f.occurrences,
+    0,
+  );
   // Saturating curve: many findings raise the score but never past 100.
   const astScore = 100 * (1 - Math.exp(-total / 55));
   let riskScore = Math.round(Math.min(100, Math.max(0, astScore)));
@@ -228,11 +257,12 @@ export function analyzeCodeSnippet(code: string): ScanResult {
   for (const f of unique) {
     vector[f.dimension] = Math.min(
       100,
-      (vector[f.dimension] ?? 0) + SEVERITY_WEIGHT[f.severity] * 2.2,
+      (vector[f.dimension] ?? 0) + SEVERITY_WEIGHT[f.severity] * 2.2 * f.occurrences,
     );
   }
 
-  const confidence = Math.min(0.95, 0.35 + 0.12 * unique.length);
+  const observed = unique.reduce((sum, f) => sum + f.occurrences, 0);
+  const confidence = Math.min(0.95, 0.35 + 0.12 * observed);
 
   return {
     risk_score: riskScore,
@@ -302,12 +332,15 @@ export function analyzeMany(blocks: { code?: string }[]): ScanResult {
     }
   }
 
+  // Collapse the same weakness class seen in several harvested artefacts.
+  const mergedFindings = mergeByClass(findings);
+
   return {
     risk_score: worst.risk_score,
     severity_label: worst.severity_label,
     confidence: worst.confidence,
     engine: worst.engine,
-    findings,
+    findings: mergedFindings,
     factors: worst.factors,
     vector: Object.fromEntries(
       Object.entries(merged).map(([k, v]) => [k, Number(v.toFixed(2))]),

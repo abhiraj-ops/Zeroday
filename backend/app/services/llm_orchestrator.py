@@ -387,6 +387,7 @@ class LLMOrchestrator:
                     source_url=intel.target_url,
                     confidence=0.7 if vulnerability.get("evidence_quote") else 0.5,
                     evidence=str(vulnerability.get("evidence_quote") or "") or None,
+                    occurrences=1,
                 )
             )
 
@@ -404,6 +405,7 @@ class LLMOrchestrator:
                     source_url=intel.target_url,
                     confidence=round(ml_result.get("confidence", 0.5) * 0.9, 3),
                     evidence=item.get("snippet") or None,
+                    occurrences=int(item.get("occurrences", 1)),
                 )
             )
 
@@ -419,6 +421,7 @@ class LLMOrchestrator:
                     ),
                     source_url=intel.target_url,
                     confidence=0.4,
+                    occurrences=1,
                 )
             )
         return findings

@@ -218,6 +218,7 @@ class CodeBETAstScanner:
                     "description": description,
                     "line": getattr(node, "lineno", None),
                     "snippet": _snippet_for(code, node),
+                    "occurrences": 1,
                 }
             )
 
@@ -462,6 +463,7 @@ class CodeBETAstScanner:
                     "description": f"Pattern matched `{match.group(0).strip()}` in a {language} snippet.",
                     "line": line_no,
                     "snippet": _line_at(code, line_no),
+                    "occurrences": 1,
                 }
             )
 
@@ -477,6 +479,7 @@ class CodeBETAstScanner:
                     "description": "A secret appears to be hardcoded. Move it to environment configuration.",
                     "line": line_no,
                     "snippet": _line_at(code, line_no),
+                    "occurrences": 1,
                 }
             )
         return findings
@@ -551,18 +554,15 @@ class CodeBETAstScanner:
             findings.extend(self._analyse_python(snippet))
         findings.extend(self._analyse_patterns(snippet, language))
 
-        # De-duplicate on (title, line).
-        seen: set[tuple[str, Any]] = set()
-        unique: list[dict[str, Any]] = []
-        for finding in findings:
-            key = (finding["title"], finding.get("line"))
-            if key in seen:
-                continue
-            seen.add(key)
-            unique.append(finding)
+        # Collapse repeated occurrences of the same weakness class.
+        unique = _merge_by_class(findings)
 
-        # --- risk score ------------------------------------------------
-        total = sum(SEVERITY_WEIGHT.get(f["severity"], 5.0) for f in unique)
+        # Weighting by occurrence count keeps the score identical to the
+        # pre-merge behaviour, where each hit was its own row.
+        total = sum(
+            SEVERITY_WEIGHT.get(f["severity"], 5.0) * f.get("occurrences", 1)
+            for f in unique
+        )
         # Saturating curve: many findings raise the score but never past 100.
         ast_score = 100.0 * (1.0 - math.exp(-total / 55.0))
 
@@ -599,7 +599,11 @@ class CodeBETAstScanner:
             dimension = finding.get("dimension") or "input_validation"
             if dimension in vector:
                 vector[dimension] = min(
-                    100.0, vector[dimension] + SEVERITY_WEIGHT.get(finding["severity"], 5.0) * 2.2
+                    100.0,
+                    vector[dimension]
+                    + SEVERITY_WEIGHT.get(finding["severity"], 5.0)
+                    * 2.2
+                    * finding.get("occurrences", 1),
                 )
         if semantic is not None:
             vector["code_injection"] = min(
@@ -607,7 +611,8 @@ class CodeBETAstScanner:
             )
 
         # --- confidence + factors ---------------------------------------
-        confidence = min(0.95, 0.35 + 0.12 * len(unique) + (0.2 if engine == "codebert+ast" else 0.0))
+        observed = sum(f.get("occurrences", 1) for f in unique)
+        confidence = min(0.95, 0.35 + 0.12 * observed + (0.2 if engine == "codebert+ast" else 0.0))
         factors = [f["title"] for f in unique[:6]]
         if not factors:
             factors = ["No dangerous patterns detected in this snippet."]
@@ -669,13 +674,8 @@ class CodeBETAstScanner:
         for analysis in analyses:
             all_findings.extend(analysis["findings"])
 
-        seen: set[tuple[str, Any]] = set()
-        unique_findings = []
-        for finding in all_findings:
-            key = (finding["title"], finding.get("line"))
-            if key not in seen:
-                seen.add(key)
-                unique_findings.append(finding)
+        # Collapse the same weakness class seen in several harvested artefacts.
+        unique_findings = _merge_by_class(all_findings)
 
         return {
             "risk_score": worst["risk_score"],
@@ -696,6 +696,26 @@ class CodeBETAstScanner:
 # ---------------------------------------------------------------------------
 # AST helpers
 # ---------------------------------------------------------------------------
+def _merge_by_class(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Collapse findings that describe the same weakness class.
+
+    The key is the class (title + CWE), not the position in the file. The same
+    JNDI payload turns up in every harvested proof-of-concept, so keying on
+    the line number reported one bug once per artefact and the findings list
+    read as a wall of duplicates. Occurrences are counted instead, so the
+    information survives the collapse.
+    """
+    merged: dict[str, dict[str, Any]] = {}
+    for finding in findings:
+        key = f"{finding.get('title', '')}|{finding.get('cwe') or ''}"
+        existing = merged.get(key)
+        if existing is None:
+            merged[key] = {**finding, "occurrences": finding.get("occurrences", 1)}
+            continue
+        existing["occurrences"] = existing.get("occurrences", 1) + finding.get("occurrences", 1)
+    return list(merged.values())
+
+
 def _called_name(node: ast.AST, dotted: bool = False) -> str:
     """Best-effort name of a called function, e.g. ``os.system``."""
     if isinstance(node, ast.Name):

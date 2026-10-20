@@ -27,6 +27,12 @@ export interface Finding {
   source_url: string | null;
   confidence: number;
   evidence: string | null;
+  /**
+   * How many harvested artefacts showed this weakness. One vulnerability
+   * class usually appears in several proof-of-concept files; the dashboard
+   * reports the class once and says how often it turned up.
+   */
+  occurrences: number;
 }
 
 export interface RiskScore {

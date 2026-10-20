@@ -7,19 +7,12 @@
  */
 
 import type { RadarDimension, ScanResult, Severity, StaticFinding } from "./scanner";
+import type { Finding } from "../types";
 
-export interface Finding {
-  title: string;
-  severity: Severity;
-  cwe: string | null;
-  description: string;
-  location: string | null;
-  code_snippet: string | null;
-  language: string | null;
-  source_url: string | null;
-  confidence: number;
-  evidence: string | null;
-}
+// The Finding shape is the shared contract in ../types (it mirrors the
+// Pydantic model). Re-exported here so the verdict engine and the dashboard
+// can never drift apart on the field list.
+export type { Finding };
 
 export interface PatchFix {
   title: string;
@@ -356,6 +349,7 @@ export function buildFindings(intel: ExploitIntel, ml: ScanResult): Finding[] {
       source_url: intel.target_url,
       confidence: v.evidence_quote ? 0.7 : 0.5,
       evidence: String(v.evidence_quote ?? "") || null,
+      occurrences: 1,
     });
   }
 
@@ -371,6 +365,7 @@ export function buildFindings(intel: ExploitIntel, ml: ScanResult): Finding[] {
       source_url: intel.target_url,
       confidence: Number((ml.confidence * 0.9).toFixed(3)),
       evidence: item.snippet || null,
+      occurrences: item.occurrences ?? 1,
     });
   }
 
@@ -389,6 +384,7 @@ export function buildFindings(intel: ExploitIntel, ml: ScanResult): Finding[] {
       source_url: intel.target_url,
       confidence: 0.4,
       evidence: null,
+      occurrences: 1,
     });
   }
   return findings;
