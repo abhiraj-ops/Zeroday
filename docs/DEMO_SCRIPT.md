@@ -3,12 +3,12 @@
 Record with **Loom** (free, gives a shareable link instantly) or **OBS** (local file → upload
 to YouTube as *unlisted*). 1080p. Notifications off. Zoom in on small text.
 
-## ⚠️ Before you hit record
+## Before you hit record
 
-- [ ] Backend running (`uvicorn app.main:app`) and the dashboard shows **"backend online"**
+- [ ] The app is running (`npm run dev` in `frontend/`) and the sidebar shows **"Engine online"**
 - [ ] Run the target **once** end-to-end and confirm the verdict is sensible
-- [ ] The scan takes **2–3 minutes**. That's the *point* — the agent is doing real work on the
-      live web. But it means you should **start the scan, then talk over it**, not wait in silence.
+- [ ] A scan takes **about 30 seconds**. That's the *point* — it is doing real work on the live
+      web. But it means you should **start the scan, then talk over it**, not wait in silence.
 - [ ] Close every other tab. Open the source advisory in a second tab for the "real page" moment
 - [ ] Have the README architecture diagram open in a third tab for the explainer shot
 
@@ -27,7 +27,7 @@ the Log4j/JNDI remediation rule fires.
 ## The script
 
 ### 0:00–0:20 — Hook
-**Screen:** dark dashboard, target bar empty
+**Screen:** the workbench, target bar empty
 **Say:** "A new CVE drops. How long before anyone knows if it's exploitable? For most teams:
 hours. That's the gap this closes."
 
@@ -38,22 +38,24 @@ web agent, harvests real exploit intelligence, scores it with a static analyser,
 a patch."
 
 ### 0:35–1:50 — ⭐ Main demo (the most important 75 seconds)
-**Screen:** app only, cursor visible. **Click "Initiate Scan" and talk over the running scan.**
+**Screen:** app only, cursor visible. **Click "Run scan" and talk over the running scan.**
 
-Watch the **left terminal** fill up in real time. Point out the actual agent reasoning:
+Watch the **run log** fill up in real time. Point out the actual pipeline:
 
 > "Navigating to the NVD page…"
-> "Visit CVE-2021-44228 NVD page"
-> "Get CVE-2021-44228 details from NVD page"
-> "Expand CVE change history"
+> "Discovered 31 candidate sources across the live web."
+> "Extracting artefacts from GitHub - rhuss/log4shell-poc…"
+> "Enriched 4 CVE record(s) with authoritative NVD data."
+> "Static analysis complete — risk 78/100 (CRITICAL)."
 
-**Say:** "It's not a scraper. It's an AI browser agent — TinyFish — deciding what to click, what
-to expand and what to read, and streaming its plan to us as it works."
+**Say:** "It's not a scraper. It drives a real browser agent — TinyFish — deciding what to click
+and what to read, and streaming its plan to us as it works. Search finds the advisories and
+Fetch renders the pages."
 
-Then the right-hand panel lands: **risk dial, radar chart, findings, patch**.
+Then the assessment lands: **risk score on its scale, the risk vector, the findings, the patch**.
 
-**Say:** "CodeBERT embeddings and a real AST analyser score the harvested code, and the
-vulnerability class maps to a concrete patch."
+**Say:** "A real AST analyser scores the harvested code, and the vulnerability class maps to a
+concrete patch."
 
 ### 1:50–2:10 — ⭐ The "this is real" moment
 **Screen:** the findings list, with the evidence quote
@@ -61,7 +63,7 @@ vulnerability class maps to a concrete patch."
 *(Optional: switch to the NVD tab and Ctrl+F the quoted sentence.)*
 
 ### 2:10–2:30 — The patch
-**Screen:** scroll to the Remediation Patch panel
+**Screen:** the Remediation view, on the Diff tab
 **Say:** "It doesn't just say 'this is dangerous'. It gives you the fix — upgrade Log4j to
 2.17.1, disable JNDI lookups — with the exact diff, and steps to hunt for exploitation."
 
@@ -80,10 +82,10 @@ it work."
 
 ## Recording tips
 
-- **Start the scan first, then talk.** The agent takes a minute or two — use that time.
+- **Start the scan first, then talk.** A scan takes about 30 seconds — use that time.
 - One clean take per section, then stitch. You will not nail 3 minutes in one go.
 - Speak ~20% slower than feels natural.
-- The terminal is the star — make sure the text is readable on the recording.
+- The run log is the star — make sure the text is readable on the recording.
 - **Total runtime target: 2:30.**
 
 ## After recording
