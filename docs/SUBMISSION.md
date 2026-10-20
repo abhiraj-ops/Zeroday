@@ -20,7 +20,7 @@ intelligence, scores it with CodeBERT + AST analysis, and generates a working pa
 ## Field: GitHub repo link
 
 ```
-https://github.com/abhiraj-ops/Kritical_Hacks
+https://github.com/abhiraj-ops/Zeroday
 ```
 
 ## Field: Demo video link

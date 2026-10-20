@@ -62,7 +62,7 @@ There is no second backend to run and no CORS to configure.
 ### 1. Connect the repo to Netlify
 
 1. Go to <https://app.netlify.com> → **Add new site** → **Import an existing project**
-2. Choose **abhiraj-ops/Kritical_Hacks**
+2. Choose **abhiraj-ops/Zeroday**
 3. Netlify reads `netlify.toml` automatically:
    - Build command: `npm run build`
    - Publish directory: `.next`

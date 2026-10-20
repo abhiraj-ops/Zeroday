@@ -31,7 +31,7 @@ Fetch (both free) carry the scan on their own. A scan never comes back empty.
 
 Built for the gap between "a CVE was published" and "someone actually checked if we care".
 
-🧑‍💻 Open source → github.com/abhiraj-ops/Kritical_Hacks
+🧑‍💻 Open source → github.com/abhiraj-ops/Zeroday
 🎥 2-min demo → <demo-link>
 
 #CyberSecurity #AppSec #AI #ThreatIntelligence #OpenSource
@@ -51,7 +51,7 @@ harvests real exploit intel, scores it with CodeBERT + AST, and writes the patch
 the evidence is harvested, not generated — it's verbatim from the live advisory.
 the patch is a real diff, not advice.
 
-🧑‍💻 github.com/abhiraj-ops/Kritical_Hacks
+🧑‍💻 github.com/abhiraj-ops/Zeroday
 🎥 <demo-link>
 ```
 

@@ -73,7 +73,7 @@ gracefully — if the agent is slow, Search and Fetch carry the scan on their ow
 
 ### 2:50–3:00 — Close
 **Screen:** repo URL
-**Say:** "Open source at github.com/abhiraj-ops/Kritical_Hacks. Point it at a target and watch
+**Say:** "Open source at github.com/abhiraj-ops/Zeroday. Point it at a target and watch
 it work."
 
 ---
