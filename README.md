@@ -9,6 +9,9 @@ Target URL  ──▶  TinyFish Web Agent  ──▶  CodeBERT + AST  ──▶ 
                 (search · fetch · browse)   (semantic + static)    (streamed live)
 ```
 
+**Live:** <https://zeroday-guard-ai.netlify.app> — a scan takes about 30 seconds and
+returns a full assessment with findings and a remediation patch.
+
 ---
 
 ## 🖥 The interface
@@ -117,6 +120,21 @@ There is no second backend to run and no CORS to configure.
 | `TINYFISH_API_KEY` | `sk-tinyfish-…` (from <https://agent.tinyfish.ai/api-keys>) |
 
 Then **Deploy site → Trigger deploy → Clear cache and deploy site**.
+
+#### Optional: the scan budgets
+
+The whole scan runs inside one function invocation, so it has to fit the platform's
+wall-clock ceiling. Two phases are slow — the browser agent and the reasoning pass —
+and both are time-boxed:
+
+| Key | Default | What it covers |
+|---|---|---|
+| `AGENT_TIME_BUDGET_MS` | `12000` | How long the TinyFish browser agent may run before the pipeline falls back to Search + Fetch |
+| `RESEARCH_TIME_BUDGET_MS` | `15000` | How long the TinyFish Research synthesis may run before the deterministic template is used |
+
+Search, Fetch and NVD enrichment together take about five seconds, so a scan completes
+in roughly 30 seconds. Raise these on a platform with a longer ceiling — the
+self-hosted Python tier has no such limit and can afford a 90-second agent budget.
 
 ### 3. Done
 

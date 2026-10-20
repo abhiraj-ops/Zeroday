@@ -149,7 +149,7 @@ export default function TargetComposer({
             <span>to run</span>
           </span>
           <span className="text-line-strong">|</span>
-          <span>Search + Fetch run on every target; the browser agent is time-boxed to 90s.</span>
+          <span>Search + Fetch run on every target; the browser agent is time-boxed and optional.</span>
         </div>
 
         {error && (
