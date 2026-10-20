@@ -1,0 +1,53 @@
+# ZeroDay-Guard AI — automatic deployment
+#
+# Push to main and the live site rebuilds. The build is the same one the
+# Netlify CLI runs locally: netlify.toml selects frontend/ as the base
+# directory, the OpenNext adapter provisions the functions for the API
+# routes, and the result is published to the site.
+#
+# The CI workflow runs the tests and the secret scan. This one deploys.
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time, and never publish a commit that is already stale.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+# The workflow only needs to read the repository. The deploy credential is
+# scoped by the Netlify token, not by this permission.
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Netlify CLI
+        run: npm install -g netlify-cli
+
+      # `netlify deploy` reads netlify.toml from the repository root, which
+      # points it at frontend/ for the build and frontend/.next for the
+      # publish directory.
+      - name: Deploy to Netlify
+        run: netlify deploy --prod --message "deploy ${GITHUB_SHA}"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
