@@ -1,0 +1,93 @@
+# ZeroDay-Guard AI — continuous integration
+#
+# TO ENABLE: copy this file to .github/workflows/ci.yml and push.
+#
+#   mkdir -p .github/workflows && cp ci/ci.yml .github/workflows/ci.yml
+#
+# It lives here rather than in .github/workflows/ because creating workflow
+# files through the API requires a token with the `workflow` scope, which
+# the push that added this file did not have. Moving it into place is a
+# one-line copy, and GitHub then picks it up on the next push.
+#
+# It runs:
+#   - the backend unit tests and an import check
+#   - the frontend production build and type check
+#   - a secret scan that fails the build if a TinyFish API key is ever
+#     committed to the repository
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compile check
+        working-directory: backend
+        run: python -m compileall -q app
+
+      - name: Unit tests
+        working-directory: backend
+        run: python -m unittest discover -s tests -v
+
+      - name: Import check
+        working-directory: backend
+        run: python -c "from app.main import app; print('routes:', len(app.routes))"
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Build first: Next.js generates next-env.d.ts during the build, and the
+      # type check depends on it.
+      - name: Build
+        run: npm run build
+
+      - name: Type check
+        run: npm run typecheck
+
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fail if an API key was committed
+        run: |
+          if git log -p --all | grep -nE 'sk-tinyfish-[A-Za-z0-9_-]{20,}'; then
+            echo "::error::A TinyFish API key was found in git history."
+            exit 1
+          fi
+          echo "No API keys found in history."
