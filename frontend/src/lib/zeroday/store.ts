@@ -56,13 +56,14 @@ function pruneMemory(): void {
 /* --------------------------------------------------------- netlify blobs */
 
 type BlobsStore = {
-  get(key: string): Promise<unknown>;
-  set(key: string, value: unknown): Promise<void>;
+  setJSON(key: string, data: unknown): Promise<unknown>;
+  get(key: string, options: { type: "json" }): Promise<unknown>;
   delete(key: string): Promise<void>;
 };
 
 let blobsStore: BlobsStore | null = null;
 let blobsChecked = false;
+let blobsError: string | null = null;
 
 async function getBlobsStore(): Promise<BlobsStore | null> {
   if (blobsChecked) return blobsStore;
@@ -73,15 +74,50 @@ async function getBlobsStore(): Promise<BlobsStore | null> {
     const mod = (await import("@netlify/blobs")) as unknown as {
       getStore: (name: string) => BlobsStore;
     };
+    if (typeof mod.getStore !== "function") {
+      throw new Error(
+        "the installed @netlify/blobs does not export getStore - the job store needs version 7 or newer",
+      );
+    }
     blobsStore = mod.getStore(STORE_NAME);
-  } catch {
+  } catch (err) {
+    blobsError = err instanceof Error ? err.message : String(err);
+    console.warn("[store] blob store unavailable, using memory:", blobsError);
     blobsStore = null;
   }
   return blobsStore;
 }
 
 function isNetlifyRuntime(): boolean {
-  return Boolean(process.env.NETLIFY || process.env.NETLIFY_BUILD_BASE || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  return Boolean(
+    process.env.NETLIFY ||
+      process.env.NETLIFY_BUILD_BASE ||
+      process.env.NETLIFY_SITE_ID ||
+      process.env.AWS_LAMBDA_FUNCTION_NAME,
+  );
+}
+
+/**
+ * How the job store is currently backed.
+ *
+ * Surfaced by the health endpoint so a store that has silently fallen back
+ * to process memory is visible, instead of showing up as unexplained 404s
+ * on the first poll.
+ */
+export async function storeDiagnostics(): Promise<{
+  backend: "blobs" | "memory";
+  durable: boolean;
+  error: string | null;
+}> {
+  if (!isNetlifyRuntime()) {
+    return { backend: "memory", durable: false, error: null };
+  }
+  const store = await getBlobsStore();
+  return {
+    backend: store ? "blobs" : "memory",
+    durable: Boolean(store),
+    error: blobsError,
+  };
 }
 
 /* ------------------------------------------------------------- public API */
@@ -90,7 +126,7 @@ export async function putJob(job: ScanJob): Promise<void> {
   const store = isNetlifyRuntime() ? await getBlobsStore() : null;
   if (store) {
     try {
-      await store.set(job.id, job);
+      await store.setJSON(job.id, job);
       return;
     } catch (err) {
       console.warn("[store] blob write failed, using memory:", err);
@@ -104,10 +140,9 @@ export async function getJob(id: string): Promise<ScanJob | null> {
   const store = isNetlifyRuntime() ? await getBlobsStore() : null;
   if (store) {
     try {
-      const value = await store.get(id);
+      const value = await store.get(id, { type: "json" });
       if (value) {
-        // Blobs may return a JSON string depending on how it was written.
-        return typeof value === "string" ? (JSON.parse(value) as ScanJob) : (value as ScanJob);
+        return value as ScanJob;
       }
       return null;
     } catch (err) {

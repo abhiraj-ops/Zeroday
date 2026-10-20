@@ -11,7 +11,11 @@
 [build]
   base = "frontend"
   command = "npm run build"
-  publish = ".next"
+  # The publish path is resolved from the repository root, not from the base
+  # directory, so it has to include "frontend/" as well. Writing ".next" here
+  # makes Netlify look for <repo>/.next, which never exists, and the build
+  # fails with "Your publish directory was not found".
+  publish = "frontend/.next"
 
 [build.environment]
   NODE_VERSION = "20"

@@ -6,6 +6,9 @@ import { appendEvent, newJob, putJob, updateJob } from "@/lib/zeroday/store";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** How often the job is touched while a scan is running. */
+const HEARTBEAT_INTERVAL_MS = 8_000;
+
 /**
  * Create a scan job and run it in the background.
  *
@@ -64,6 +67,13 @@ export async function POST(req: Request) {
       return writes;
     };
 
+    // A heartbeat, so the job looks alive while a long phase is running.
+    // It goes through the same chain as the event writes, otherwise it
+    // could write back a stale copy of the job and lose an event.
+    const heartbeat = setInterval(() => {
+      writes = writes.then(() => updateJob(id, (j) => ({ ...j })));
+    }, HEARTBEAT_INTERVAL_MS);
+
     try {
       const assessment = await runScan(targetUrl, cveId, focus, (e) => {
         void emit(e);
@@ -84,6 +94,8 @@ export async function POST(req: Request) {
         error: message,
         updatedAt: Date.now(),
       }));
+    } finally {
+      clearInterval(heartbeat);
     }
   };
 

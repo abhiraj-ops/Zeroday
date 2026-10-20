@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@netlify/blobs": "^1.0.0",
+    "@netlify/blobs": "^11.1.4",
     "lucide-react": "^0.469.0",
     "next": "15.5.28",
     "react": "19.0.0",

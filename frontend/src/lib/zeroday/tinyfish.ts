@@ -305,12 +305,18 @@ export async function* streamAgent(
   url: string,
   goal: string,
   outputSchema?: unknown,
+  budgetMs?: number,
 ): AsyncGenerator<AgentStreamEvent> {
+  // The abort signal is the real enforcement of the time budget. Checking a
+  // deadline between chunks is not enough: if the stream goes quiet, the
+  // read never returns and the budget would never fire. Aborting the fetch
+  // unblocks the reader, so a stalled agent is abandoned on time instead of
+  // hanging until the function is killed.
   const res = await fetch(`${TINYFISH_AGENT_URL}/v1/automation/run-sse`, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify({ url, goal, output_schema: outputSchema }),
-    signal: AbortSignal.timeout(240_000),
+    signal: AbortSignal.timeout(budgetMs ?? 240_000),
     cache: "no-store",
   });
   if (!res.ok) throw await readError(res);
@@ -391,7 +397,9 @@ export async function researchSummary(
       method: "POST",
       headers: headers(),
       body: JSON.stringify({ query, mode: "deep", stream: true }),
-      signal: AbortSignal.timeout(180_000),
+      // Abort on the budget so a silent stream cannot hold the function
+      // open past its ceiling.
+      signal: AbortSignal.timeout(Math.max(10_000, budgetMs)),
       cache: "no-store",
     });
     if (!res.ok) return "";

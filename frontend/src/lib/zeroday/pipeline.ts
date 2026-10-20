@@ -38,10 +38,32 @@ export interface PipelineEvent {
   data?: Record<string, unknown> | null;
 }
 
-/** Wall-clock budgets. A serverless function has a hard ceiling, so these
- *  are deliberately conservative. */
-export const AGENT_TIME_BUDGET_MS = 75_000;
-export const RESEARCH_TIME_BUDGET_MS = 40_000;
+/** Read a positive integer from the environment, falling back when absent. */
+function envInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  const value = raw ? Number.parseInt(raw, 10) : Number.NaN;
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+/**
+ * Wall-clock budgets. A serverless function has a hard ceiling, so these
+ * are deliberately conservative and overridable per deployment.
+ *
+ * The whole scan has to fit inside one function invocation, because the
+ * background work is awaited by the same request. The agent and the
+ * reasoning pass are the only two slow phases - Search, Fetch and NVD
+ * enrichment together take about five seconds - so they are what the
+ * budget has to cover.
+ */
+export const AGENT_TIME_BUDGET_MS = envInt("AGENT_TIME_BUDGET_MS", 12_000);
+export const RESEARCH_TIME_BUDGET_MS = envInt("RESEARCH_TIME_BUDGET_MS", 15_000);
+
+/**
+ * How long a job may sit without progress before the poll endpoint gives up
+ * on it. A function that is terminated mid-scan leaves the job "running"
+ * forever, so the client needs a definite answer rather than an endless poll.
+ */
+export const JOB_STALE_AFTER_MS = envInt("JOB_STALE_AFTER_MS", 90_000);
 
 const CODE_BLOCK_PATTERN = /```([\w+#.-]*)\n([\s\S]*?)```/g;
 const DIFF_PATTERN = /^(diff --git .*?$|@@ .*?$|[+-](?![+-]).*?$)/gm;
@@ -292,7 +314,12 @@ export async function runScan(
   emit(event("stage", "navigate", `Navigating to ${targetUrl}…`, "agent"));
 
   try {
-    for await (const payload of streamAgent(targetUrl, CRAWL_GOAL, CRAWL_OUTPUT_SCHEMA)) {
+    for await (const payload of streamAgent(
+      targetUrl,
+      CRAWL_GOAL,
+      CRAWL_OUTPUT_SCHEMA,
+      AGENT_TIME_BUDGET_MS,
+    )) {
       if (Date.now() > deadline) {
         agentError = `agent exceeded its ${AGENT_TIME_BUDGET_MS / 1000}s budget`;
         break;
@@ -307,7 +334,15 @@ export async function runScan(
       }
     }
   } catch (err) {
-    agentError = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    // The abort that enforces the budget surfaces here. Report it as a
+    // budget overrun rather than a transport failure, because that is what
+    // it is.
+    const name = err instanceof Error ? err.name : "";
+    if (name === "AbortError" || name === "TimeoutError") {
+      agentError = `agent exceeded its ${Math.round(AGENT_TIME_BUDGET_MS / 1000)}s budget`;
+    } else {
+      agentError = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    }
   }
 
   if (agentPayload) {

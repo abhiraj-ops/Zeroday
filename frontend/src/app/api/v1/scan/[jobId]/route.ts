@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getJob } from "@/lib/zeroday/store";
+import { getJob, updateJob } from "@/lib/zeroday/store";
+import { JOB_STALE_AFTER_MS } from "@/lib/zeroday/pipeline";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,17 +10,37 @@ export const dynamic = "force-dynamic";
  *
  * Returns the full event trace so far plus the assessment once it is ready.
  * The client appends only the events it has not seen yet, which is what
- * makes the terminal fill up live.
+ * makes the run log fill up live.
  */
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ jobId: string }> },
 ) {
   const { jobId } = await params;
-  const job = await getJob(jobId);
+  let job = await getJob(jobId);
 
   if (!job) {
     return NextResponse.json({ error: "Unknown or expired job id." }, { status: 404 });
+  }
+
+  // A serverless function that is terminated mid-scan leaves the job stuck
+  // on "running" forever. The heartbeat stops when that happens, so a job
+  // with no progress for longer than the stale window is dead. Fail it
+  // explicitly rather than letting the client poll a job that will never
+  // finish.
+  if (
+    job.status === "running" &&
+    Date.now() - job.updatedAt > JOB_STALE_AFTER_MS
+  ) {
+    const failed = await updateJob(job.id, (j) => ({
+      ...j,
+      status: "error",
+      error:
+        "The scan was interrupted before it finished — the analysis runtime stopped " +
+        "mid-run. Start a new scan to try again.",
+      updatedAt: Date.now(),
+    }));
+    if (failed) job = failed;
   }
 
   return NextResponse.json(
