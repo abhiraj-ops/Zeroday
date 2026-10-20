@@ -17,6 +17,9 @@ Target URL  -->  TinyFish Web Agent  -->  CodeBERT + AST  -->  Risk Verdict + Di
 **Live:** <https://zeroday-guard-ai.netlify.app> - a scan takes about 30 seconds and returns a
 full assessment with findings and a remediation patch. Push to `main` and it redeploys itself.
 
+**Demo:** [`docs/demo.mp4`](docs/demo.mp4) - 1 min 32 sec, recorded against the live site with a
+real scan running against the real NVD page for CVE-2021-44228. Nothing in it is staged.
+
 ---
 
 ## What it does
@@ -493,6 +496,11 @@ frontend/                        # Netlify tier (the live site)
 
 .github/workflows/ci.yml       # tests, build, secret scan
 .github/workflows/deploy.yml    # build and publish to Netlify
+
+docs/
+├── demo.mp4                   # 90-second product walkthrough
+├── DEMO_SCRIPT.md             # timecodes and voice-over for the video
+└── record-demo.mjs            # regenerates the video with Playwright
 ```
 
 ---

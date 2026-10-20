@@ -1,95 +1,60 @@
-# ZeroDay-Guard AI — Demo Video Shot List (2–3 min)
+# ZeroDay-Guard AI — Demo video
 
-Record with **Loom** (free, gives a shareable link instantly) or **OBS** (local file → upload
-to YouTube as *unlisted*). 1080p. Notifications off. Zoom in on small text.
+![Demo](demo.mp4)
 
-## Before you hit record
+**`docs/demo.mp4`** — 1 min 32 sec, 1440x900, 25 fps. Recorded against the live site
+(<https://zeroday-guard-ai.netlify.app>) with a real scan running against the real NVD page
+for CVE-2021-44228. Nothing in it is staged.
 
-- [ ] The app is running (`npm run dev` in `frontend/`) and the sidebar shows **"Engine online"**
-- [ ] Run the target **once** end-to-end and confirm the verdict is sensible
-- [ ] A scan takes **about 30 seconds**. That's the *point* — it is doing real work on the live
-      web. But it means you should **start the scan, then talk over it**, not wait in silence.
-- [ ] Close every other tab. Open the source advisory in a second tab for the "real page" moment
-- [ ] Have the README architecture diagram open in a third tab for the explainer shot
-
-### Best target for the demo
-
-```
-https://nvd.nist.gov/vuln/detail/CVE-2021-44228
-```
-
-Log4Shell. It is the most-recognised CVE in the world, it has a public PoC and an upstream
-patch, so every panel of the UI lights up: real CVE ID, real description, real patch diff, and
-the Log4j/JNDI remediation rule fires.
+Regenerate it with `docs/record-demo.mjs`.
 
 ---
 
-## The script
+## Timecodes
 
-### 0:00–0:20 — Hook
-**Screen:** the workbench, target bar empty
-**Say:** "A new CVE drops. How long before anyone knows if it's exploitable? For most teams:
-hours. That's the gap this closes."
+The video carries its own on-screen captions, so it plays on its own. This is the same
+walkthrough with the voice-over that fits each beat, if you want to record your own take over
+it.
 
-### 0:20–0:35 — What it is
-**Screen:** you, or a clean title card — **ZeroDay-Guard AI**
-**Say:** "This is an autonomous threat assessor. Give it a URL. It browses the target with an AI
-web agent, harvests real exploit intelligence, scores it with a static analyser, and hands you
-a patch."
-
-### 0:35–1:50 — ⭐ Main demo (the most important 75 seconds)
-**Screen:** app only, cursor visible. **Click "Run scan" and talk over the running scan.**
-
-Watch the **run log** fill up in real time. Point out the actual pipeline:
-
-> "Navigating to the NVD page…"
-> "Discovered 31 candidate sources across the live web."
-> "Extracting artefacts from GitHub - rhuss/log4shell-poc…"
-> "Enriched 4 CVE record(s) with authoritative NVD data."
-> "Static analysis complete — risk 78/100 (CRITICAL)."
-
-**Say:** "It's not a scraper. It drives a real browser agent — TinyFish — deciding what to click
-and what to read, and streaming its plan to us as it works. Search finds the advisories and
-Fetch renders the pages."
-
-Then the assessment lands: **risk score on its scale, the risk vector, the findings, the patch**.
-
-**Say:** "A real AST analyser scores the harvested code, and the vulnerability class maps to a
-concrete patch."
-
-### 1:50–2:10 — ⭐ The "this is real" moment
-**Screen:** the findings list, with the evidence quote
-**Say:** "That's the real advisory text, harvested from the live page — not generated."
-*(Optional: switch to the NVD tab and Ctrl+F the quoted sentence.)*
-
-### 2:10–2:30 — The patch
-**Screen:** the Remediation view, on the Diff tab
-**Say:** "It doesn't just say 'this is dangerous'. It gives you the fix — upgrade Log4j to
-2.17.1, disable JNDI lookups — with the exact diff, and steps to hunt for exploitation."
-
-### 2:30–2:50 — Architecture + honesty
-**Screen:** README architecture diagram
-**Say:** "Four TinyFish surfaces do the work: the Agent API drives the browser, Search finds the
-advisories, Fetch renders the pages, Research reasons over the result. And it degrades
-gracefully — if the agent is slow, Search and Fetch carry the scan on their own."
-
-### 2:50–3:00 — Close
-**Screen:** repo URL
-**Say:** "Open source at github.com/abhiraj-ops/Zeroday. Point it at a target and watch
-it work."
+| Time | On screen | Voice-over |
+|---|---|---|
+| 0:00-0:08 | The workbench, empty target field | "A new CVE drops. How long before anyone knows if it's actually exploitable? For most teams, hours. That's the gap this closes." |
+| 0:08-0:18 | The NVD URL typed into the target field | "Give it a URL. An advisory, a release note, a product page — the same input drives the whole pipeline." |
+| 0:18-0:22 | **Run scan** clicked, the button flips to *Analysing* | "It's not a scraper. It drives a real browser agent and streams its plan back to you as it works." |
+| 0:22-0:52 | The run log filling with real pipeline events | "Search finds the advisories and the proof-of-concept pages. Fetch renders them. Each artefact is extracted as it lands — timestamps, levels, the source it came from." |
+| 0:52-1:00 | The assessment: 78/100, CRITICAL, the risk vector | "A real AST analyser scores the harvested code. Six dimensions, each one printed with its value, so you can compare them without decoding a radar angle." |
+| 1:00-1:12 | A finding expanded to its evidence block | "Every finding carries the evidence it was derived from — lifted from the live page, with the source link right there. Harvested, not generated." |
+| 1:12-1:22 | The remediation diff, `+5 -2` | "And it doesn't just say this is dangerous. It gives you the fix: upgrade Log4j to 2.17.1, disable JNDI lookups, as a concrete unified diff with the manual steps and the upstream references." |
+| 1:22-1:32 | The full run log, then the closing frame | "Every stage is recorded. Open source at github.com/abhiraj-ops/Zeroday." |
 
 ---
 
-## Recording tips
+## Recording your own take
+
+```bash
+npm i -D playwright && npx playwright install chromium
+node docs/record-demo.mjs out/
+```
+
+The script drives the live site, waits for a real scan to land, and records the whole
+workflow. It will not fake a result — if the scan does not produce an assessment, it fails
+loudly rather than recording an empty screen.
+
+To record a clean take without the burned-in captions, delete the `caption()` and
+`captionOff()` calls in the script.
+
+---
+
+## Tips for a clean take
 
 - **Start the scan first, then talk.** A scan takes about 30 seconds — use that time.
-- One clean take per section, then stitch. You will not nail 3 minutes in one go.
+- One clean take per section, then stitch. You will not nail 90 seconds in one go.
 - Speak ~20% slower than feels natural.
 - The run log is the star — make sure the text is readable on the recording.
-- **Total runtime target: 2:30.**
+- **Total runtime target: 1:30.**
 
 ## After recording
 
 - [ ] Watch it end-to-end **once**, sound on
-- [ ] Upload → YouTube *unlisted* or Loom
+- [ ] Upload → YouTube *unlisted*, or share the file directly
 - [ ] Play the shared link in an incognito window to confirm it works
