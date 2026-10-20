@@ -54,6 +54,45 @@ keep the previous result in view.
 
 ---
 
+## 💻 Run it locally
+
+The serverless tier runs as one Next.js app, so local development is two commands.
+
+```bash
+# 1. the app (dashboard + API + job store)
+cd frontend
+npm install
+npm run dev            # http://localhost:3000
+```
+
+Without a key it runs in **demo mode** and serves simulated intelligence, which is
+enough to exercise the whole interface. To get the live agent, add your key:
+
+```bash
+# frontend/.env.local   (gitignored - never commit the real key)
+TINYFISH_API_KEY=sk-tinyfish-…
+```
+
+Then `npm run dev` picks it up on the next start. `GET /api/v1/health` reports
+`demo_mode` and `tinyfish_configured` so you can confirm at a glance which mode
+you are in.
+
+The self-hosted Python tier runs separately:
+
+```bash
+cd backend
+pip install -r requirements.txt
+cp .env.example .env    # then fill in TINYFISH_API_KEY
+uvicorn app.main:app --reload --port 8000
+```
+
+```bash
+# the offline test suite - no network, no key
+cd backend && python -m pytest tests -q
+```
+
+---
+
 ## 🚀 Deploy to Netlify (one click, this is the live site)
 
 The whole product — dashboard **and** API — is one Next.js app, so it deploys as a single unit.
